@@ -6,6 +6,9 @@ app = Flask(__name__)
 # Telegram Bot Token
 BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
 
+# In-memory invite link storage
+invite_links = {}
+
 @app.route("/")
 def home():
     """
@@ -19,24 +22,54 @@ def telegram_webhook():
     Telegram webhook endpoint to process updates.
     """
     try:
-        # Parse the incoming request from Telegram
         data = request.get_json()
 
         # Log the data for debugging
         print("[DEBUG] Incoming Telegram update:", data)
 
-        # Process the update (you can expand this to handle commands, messages, etc.)
+        # Process Telegram messages
         if "message" in data:
             chat_id = data["message"]["chat"]["id"]
             text = data["message"].get("text", "")
 
-            # Respond to the user (optional)
-            if text:
-                send_message(chat_id, f"You said: {text}")
+            # Handle commands
+            if text == "/start":
+                send_message(chat_id, "✅ Welcome! The bot is running.")
+            elif text == "/list_invites":
+                if not invite_links:
+                    send_message(chat_id, "ℹ️ No invite links registered.")
+                else:
+                    links = "\n".join(invite_links.keys())
+                    send_message(chat_id, f"📜 Registered Invite Links:\n{links}")
 
         return "OK", 200
     except Exception as e:
         print("[ERROR] An error occurred:", str(e))
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/register_invite", methods=["POST"])
+def register_invite():
+    """
+    Custom route to register invite links sent via external service (e.g., Make).
+    """
+    try:
+        data = request.get_json()
+        invite_link = data.get("invite_link")
+
+        # Validate invite link
+        if not invite_link or not invite_link.startswith("https://t.me/"):
+            return jsonify({"error": "Invalid invite link"}), 400
+
+        # Save the invite link
+        if invite_link in invite_links:
+            return jsonify({"error": "Invite link already registered"}), 400
+
+        invite_links[invite_link] = False  # Mark as unused
+        print(f"[INFO] Invite link registered: {invite_link}")
+
+        return jsonify({"status": "success", "message": "Invite link registered"}), 200
+    except Exception as e:
+        print("[ERROR] Failed to register invite link:", str(e))
         return jsonify({"error": str(e)}), 500
 
 def send_message(chat_id, text):
