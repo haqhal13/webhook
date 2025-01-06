@@ -5,6 +5,7 @@ app = Flask(__name__)
 
 # Telegram Bot Token
 BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
+BOT_UPDATE_URL = f"http://localhost:5000/add_invite"  # Adjust if your bot runs on a different URL/port
 
 # In-memory invite link storage
 invite_links = {}
@@ -67,10 +68,27 @@ def register_invite():
         invite_links[invite_link] = False  # Mark as unused
         print(f"[INFO] Invite link registered: {invite_link}")
 
+        # Notify the bot to update its in-memory invite links
+        notify_bot(invite_link)
+
         return jsonify({"status": "success", "message": "Invite link registered"}), 200
     except Exception as e:
         print("[ERROR] Failed to register invite link:", str(e))
         return jsonify({"error": str(e)}), 500
+
+def notify_bot(invite_link):
+    """
+    Notify the bot about the new invite link registration.
+    """
+    payload = {"invite_link": invite_link}
+    try:
+        response = requests.post(BOT_UPDATE_URL, json=payload)
+        if response.status_code == 200:
+            print(f"[INFO] Successfully notified bot about new invite link: {invite_link}")
+        else:
+            print(f"[WARNING] Failed to notify bot. Status Code: {response.status_code}, Response: {response.text}")
+    except Exception as e:
+        print(f"[ERROR] Could not notify bot: {e}")
 
 def send_message(chat_id, text):
     """
