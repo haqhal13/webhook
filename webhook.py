@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import requests
 
+# Flask app
 app = Flask(__name__)
 
 # Telegram Bot Token for Invite Bot
