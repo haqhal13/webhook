@@ -5,11 +5,8 @@ import logging
 # Flask app for the webhook
 app = Flask(__name__)
 
-# Telegram Bot Token
-BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
-
-# Endpoint to notify the bot of new invite links
-BOT_UPDATE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+# Telegram Bot Local Endpoint (Replace with the correct local bot endpoint URL)
+LOCAL_BOT_URL = "http://127.0.0.1:5000/update_invite"  # Local endpoint for the bot
 
 # Configure logging
 logging.basicConfig(
@@ -42,8 +39,8 @@ def register_invite():
             logging.warning("[WARNING] Invalid invite link received.")
             return jsonify({"error": "Invalid invite link"}), 400
 
-        # Notify the bot of the new invite link
-        notify_bot(invite_link)
+        # Notify the local bot about the new invite link
+        notify_local_bot(invite_link)
 
         # Return success response
         return jsonify({"status": "success", "message": "Invite link registered"}), 200
@@ -51,24 +48,21 @@ def register_invite():
         logging.error(f"[ERROR] Failed to register invite link: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-def notify_bot(invite_link):
+def notify_local_bot(invite_link):
     """
-    Notify the bot to update its invite links storage.
+    Notify the local bot to update its invite links library.
     """
     try:
         # Prepare the payload
-        payload = {
-            "chat_id": ADMIN_ID,
-            "text": f"New invite link registered: {invite_link}",
-        }
+        payload = {"invite_link": invite_link}
 
-        # Send the request to the bot
-        response = requests.post(BOT_UPDATE_URL, json=payload)
+        # Send the request to the local bot
+        response = requests.post(LOCAL_BOT_URL, json=payload)
         response.raise_for_status()  # Raise an exception for HTTP errors
 
-        logging.info(f"[INFO] Successfully notified bot about new invite link: {invite_link}")
+        logging.info(f"[INFO] Successfully notified local bot about new invite link: {invite_link}")
     except Exception as e:
-        logging.error(f"[ERROR] Failed to notify bot about invite link: {str(e)}")
+        logging.error(f"[ERROR] Failed to notify local bot about invite link: {str(e)}")
 
 if __name__ == "__main__":
     # Run the app locally for development
