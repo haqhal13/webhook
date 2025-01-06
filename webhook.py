@@ -1,70 +1,94 @@
 from flask import Flask, request, jsonify
-import requests
 import logging
+import requests
 
-# Flask app for the webhook
 app = Flask(__name__)
 
-# Local bot endpoint (ensure this matches the bot script's endpoint)
-LOCAL_BOT_URL = "http://127.0.0.1:5000/update_invite"
+# Telegram Bot Token and Local Bot Update URL
+BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
+LOCAL_BOT_URL = f"http://127.0.0.1:5000/update_invite"
 
-# Configure logging
+# Configure Logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    level=logging.DEBUG,  # Use DEBUG level for detailed logs
 )
+logger = logging.getLogger(__name__)
 
-# ---- Home Route ----
-@app.route("/")
+# In-memory invite link storage for additional debugging
+invite_links = {}
+
+
+@app.route("/", methods=["GET"])
 def home():
     """
-    Health check endpoint to confirm the server is running.
+    Health check endpoint to confirm the webhook server is running.
     """
-    return "Webhook is running!"
+    logger.info("[INFO] Health check endpoint hit. Webhook is live.")
+    return "Webhook is running!", 200
 
-# ---- Register Invite Link ----
+
 @app.route("/register_invite", methods=["POST"])
 def register_invite():
     """
-    Endpoint to register invite links received from an external source.
+    Endpoint to register invite links sent from external services (e.g., Make/Integromat).
     """
+    logger.debug("[DEBUG] Received request on /register_invite endpoint.")
     try:
-        # Get the JSON payload
+        # Parse the incoming JSON payload
         data = request.get_json()
-        logging.info(f"[INFO] Received data for invite registration: {data}")
+        logger.info(f"[INFO] Received data for invite registration: {data}")
 
-        # Validate the payload
+        # Extract invite link from the payload
         invite_link = data.get("invite_link")
         if not invite_link or not invite_link.startswith("https://t.me/"):
-            logging.warning("[WARNING] Invalid invite link received.")
+            logger.warning("[WARNING] Invalid invite link received.")
             return jsonify({"error": "Invalid invite link"}), 400
 
-        # Notify the bot about the new invite link
+        # Check if the invite link already exists
+        if invite_link in invite_links:
+            logger.info(f"[INFO] Invite link already exists: {invite_link}")
+            logger.debug(f"[DEBUG] Current invite_links state: {invite_links}")
+            return jsonify({"message": "Invite link already registered"}), 200
+
+        # Add the invite link to the in-memory storage for testing
+        invite_links[invite_link] = False  # Mark as unused
+        logger.info(f"[INFO] Invite link registered: {invite_link}")
+        logger.debug(f"[DEBUG] Updated invite_links state: {invite_links}")
+
+        # Notify the local bot to update its library
         notify_local_bot(invite_link)
 
-        # Return success response
         return jsonify({"status": "success", "message": "Invite link registered"}), 200
+
     except Exception as e:
-        logging.error(f"[ERROR] Failed to register invite link: {str(e)}")
+        logger.error(f"[ERROR] Exception occurred during invite registration: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
 
 def notify_local_bot(invite_link):
     """
-    Notify the bot to update its invite links library.
+    Notify the local bot to update its invite link library.
     """
+    logger.debug("[DEBUG] Preparing to notify local bot.")
     try:
-        # Prepare the payload
+        # Prepare payload for the local bot
         payload = {"invite_link": invite_link}
+        logger.info(f"[INFO] Sending invite link to local bot: {payload}")
 
-        # Send the request to the local bot
+        # Send a POST request to the local bot
         response = requests.post(LOCAL_BOT_URL, json=payload)
-        response.raise_for_status()  # Raise an exception for HTTP errors
+        response.raise_for_status()
 
-        logging.info(f"[INFO] Successfully notified bot about new invite link: {invite_link}")
+        # Log the response from the local bot
+        logger.info(f"[INFO] Local bot successfully updated. Response: {response.json()}")
+
+    except requests.exceptions.RequestException as req_err:
+        logger.error(f"[ERROR] RequestException while notifying local bot: {str(req_err)}")
     except Exception as e:
-        logging.error(f"[ERROR] Failed to notify bot about invite link: {str(e)}")
-        raise
+        logger.error(f"[ERROR] Unexpected error while notifying local bot: {str(e)}")
+
 
 if __name__ == "__main__":
-    # Run the app locally for development
+    # Run the app locally for testing purposes
     app.run(host="0.0.0.0", port=5000, debug=True)
