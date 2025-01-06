@@ -1,94 +1,85 @@
 from flask import Flask, request, jsonify
-import logging
 import requests
+import logging
 
-app = Flask(__name__)
-
-# Telegram Bot Token and Local Bot Update URL
-BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
-LOCAL_BOT_URL = f"http://127.0.0.1:5000/update_invite"
+# ---- Configuration ----
+LOCAL_BOT_URL = "http://127.0.0.1:5000/register_invite"  # Local bot endpoint to notify about new invite links
 
 # Configure Logging
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.DEBUG,  # Use DEBUG level for detailed logs
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.DEBUG,  # Set to DEBUG for detailed logging
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("webhook")
 
-# In-memory invite link storage for additional debugging
-invite_links = {}
+# Flask app
+app = Flask(__name__)
 
-
-@app.route("/", methods=["GET"])
-def home():
+# ---- Flask Route: Health Check ----
+@app.route("/")
+def health_check():
     """
     Health check endpoint to confirm the webhook server is running.
     """
-    logger.info("[INFO] Health check endpoint hit. Webhook is live.")
+    logger.info("[INFO] Health check received.")
     return "Webhook is running!", 200
 
 
+# ---- Flask Route: Register Invite Link ----
 @app.route("/register_invite", methods=["POST"])
 def register_invite():
     """
-    Endpoint to register invite links sent from external services (e.g., Make/Integromat).
+    Webhook endpoint to register invite links and notify the bot.
     """
     logger.debug("[DEBUG] Received request on /register_invite endpoint.")
     try:
-        # Parse the incoming JSON payload
+        # Parse the incoming data
         data = request.get_json()
         logger.info(f"[INFO] Received data for invite registration: {data}")
 
-        # Extract invite link from the payload
+        # Validate the invite link
         invite_link = data.get("invite_link")
         if not invite_link or not invite_link.startswith("https://t.me/"):
             logger.warning("[WARNING] Invalid invite link received.")
             return jsonify({"error": "Invalid invite link"}), 400
 
-        # Check if the invite link already exists
-        if invite_link in invite_links:
-            logger.info(f"[INFO] Invite link already exists: {invite_link}")
-            logger.debug(f"[DEBUG] Current invite_links state: {invite_links}")
-            return jsonify({"message": "Invite link already registered"}), 200
+        # Log invite link processing
+        logger.info(f"[INFO] Processing invite link: {invite_link}")
 
-        # Add the invite link to the in-memory storage for testing
-        invite_links[invite_link] = False  # Mark as unused
-        logger.info(f"[INFO] Invite link registered: {invite_link}")
-        logger.debug(f"[DEBUG] Updated invite_links state: {invite_links}")
+        # Prepare payload for the bot
+        payload = {"invite_link": invite_link}
+        logger.debug(f"[DEBUG] Payload to notify bot: {payload}")
 
-        # Notify the local bot to update its library
-        notify_local_bot(invite_link)
-
-        return jsonify({"status": "success", "message": "Invite link registered"}), 200
+        # Notify the bot
+        response = notify_local_bot(payload)
+        if response.status_code == 200:
+            logger.info(f"[INFO] Successfully notified bot about invite link: {invite_link}")
+            return jsonify({"status": "success", "message": "Invite link registered and bot notified"}), 200
+        else:
+            logger.error(f"[ERROR] Failed to notify bot. Status: {response.status_code}, Response: {response.text}")
+            return jsonify({"error": "Failed to notify bot"}), 500
 
     except Exception as e:
-        logger.error(f"[ERROR] Exception occurred during invite registration: {str(e)}")
+        logger.error(f"[ERROR] Exception occurred in /register_invite: {str(e)}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
-def notify_local_bot(invite_link):
+def notify_local_bot(payload):
     """
-    Notify the local bot to update its invite link library.
+    Notify the local bot about the new invite link.
     """
-    logger.debug("[DEBUG] Preparing to notify local bot.")
+    logger.info("[INFO] Sending invite link to local bot.")
     try:
-        # Prepare payload for the local bot
-        payload = {"invite_link": invite_link}
-        logger.info(f"[INFO] Sending invite link to local bot: {payload}")
-
-        # Send a POST request to the local bot
-        response = requests.post(LOCAL_BOT_URL, json=payload)
-        response.raise_for_status()
-
-        # Log the response from the local bot
-        logger.info(f"[INFO] Local bot successfully updated. Response: {response.json()}")
-
-    except requests.exceptions.RequestException as req_err:
-        logger.error(f"[ERROR] RequestException while notifying local bot: {str(req_err)}")
-    except Exception as e:
-        logger.error(f"[ERROR] Unexpected error while notifying local bot: {str(e)}")
+        # Send POST request to the local bot
+        response = requests.post(LOCAL_BOT_URL, json=payload, timeout=10)
+        logger.debug(f"[DEBUG] Response from local bot: {response.status_code}, {response.text}")
+        return response
+    except requests.exceptions.RequestException as e:
+        logger.error(f"[ERROR] Failed to send invite link to local bot: {str(e)}", exc_info=True)
+        raise
 
 
+# ---- Run the Flask App ----
 if __name__ == "__main__":
-    # Run the app locally for testing purposes
+    logger.info("[INFO] Starting the webhook server...")
     app.run(host="0.0.0.0", port=5000, debug=True)
