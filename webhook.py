@@ -5,8 +5,8 @@ import logging
 # Flask app for the webhook
 app = Flask(__name__)
 
-# Telegram Bot Local Endpoint (Replace with the correct local bot endpoint URL)
-LOCAL_BOT_URL = "http://127.0.0.1:5000/update_invite"  # Local endpoint for the bot
+# Local bot endpoint (ensure this matches the bot script's endpoint)
+LOCAL_BOT_URL = "http://127.0.0.1:5000/update_invite"
 
 # Configure logging
 logging.basicConfig(
@@ -26,7 +26,7 @@ def home():
 @app.route("/register_invite", methods=["POST"])
 def register_invite():
     """
-    Endpoint to register invite links received from an external source (e.g., Make, Zapier).
+    Endpoint to register invite links received from an external source.
     """
     try:
         # Get the JSON payload
@@ -39,7 +39,7 @@ def register_invite():
             logging.warning("[WARNING] Invalid invite link received.")
             return jsonify({"error": "Invalid invite link"}), 400
 
-        # Notify the local bot about the new invite link
+        # Notify the bot about the new invite link
         notify_local_bot(invite_link)
 
         # Return success response
@@ -50,7 +50,7 @@ def register_invite():
 
 def notify_local_bot(invite_link):
     """
-    Notify the local bot to update its invite links library.
+    Notify the bot to update its invite links library.
     """
     try:
         # Prepare the payload
@@ -60,9 +60,10 @@ def notify_local_bot(invite_link):
         response = requests.post(LOCAL_BOT_URL, json=payload)
         response.raise_for_status()  # Raise an exception for HTTP errors
 
-        logging.info(f"[INFO] Successfully notified local bot about new invite link: {invite_link}")
+        logging.info(f"[INFO] Successfully notified bot about new invite link: {invite_link}")
     except Exception as e:
-        logging.error(f"[ERROR] Failed to notify local bot about invite link: {str(e)}")
+        logging.error(f"[ERROR] Failed to notify bot about invite link: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     # Run the app locally for development
