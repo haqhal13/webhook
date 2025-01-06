@@ -1,14 +1,10 @@
 from flask import Flask, request, jsonify
 import requests
 
-# Flask app
 app = Flask(__name__)
 
-# Telegram Bot Token for Invite Bot
-INVITE_BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
-
-# Telegram Bot API URL
-TELEGRAM_API_URL = f"https://api.telegram.org/bot{INVITE_BOT_TOKEN}/sendMessage"
+# Telegram Bot Token
+BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"
 
 @app.route("/")
 def home():
@@ -17,47 +13,43 @@ def home():
     """
     return "Webhook is running!"
 
-@app.route("/register_invite", methods=["POST"])
-def register_invite():
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
     """
-    Endpoint to receive invite link registration commands
-    and forward them to the invite bot.
+    Telegram webhook endpoint to process updates.
     """
     try:
-        # Parse JSON payload
-        data = request.json
-        invite_link = data.get("invite_link")
-        chat_id = data.get("chat_id")  # The chat ID of the invite bot
+        # Parse the incoming request from Telegram
+        data = request.get_json()
 
-        # Validate the required fields
-        if not invite_link or not chat_id:
-            return jsonify({"error": "Missing invite_link or chat_id"}), 400
+        # Log the data for debugging
+        print("[DEBUG] Incoming Telegram update:", data)
 
-        # Prepare payload for Telegram API
-        payload = {
-            "chat_id": chat_id,
-            "text": f"/register_invite {invite_link}"
-        }
+        # Process the update (you can expand this to handle commands, messages, etc.)
+        if "message" in data:
+            chat_id = data["message"]["chat"]["id"]
+            text = data["message"].get("text", "")
 
-        # Send the command to the invite bot
-        response = requests.post(TELEGRAM_API_URL, json=payload)
+            # Respond to the user (optional)
+            if text:
+                send_message(chat_id, f"You said: {text}")
 
-        # Check response status
-        if response.status_code == 200:
-            return jsonify({
-                "message": "Command forwarded successfully",
-                "response": response.json()
-            }), 200
-        else:
-            return jsonify({
-                "error": "Failed to send message to invite bot",
-                "details": response.json()
-            }), 500
-
+        return "OK", 200
     except Exception as e:
-        # Handle unexpected errors
+        print("[ERROR] An error occurred:", str(e))
         return jsonify({"error": str(e)}), 500
 
+def send_message(chat_id, text):
+    """
+    Helper function to send a message via Telegram API.
+    """
+    TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {"chat_id": chat_id, "text": text}
+    try:
+        response = requests.post(TELEGRAM_API_URL, json=payload)
+        print("[DEBUG] Telegram API response:", response.json())
+    except Exception as e:
+        print("[ERROR] Failed to send message:", str(e))
 
 if __name__ == "__main__":
     # Run the app locally for development
