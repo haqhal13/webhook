@@ -3,8 +3,8 @@ import requests
 import logging
 
 # ---- Configuration ----
-LOCAL_BOT_URL = "http://127.0.0.1:5000/register_invite"  # Local bot endpoint to notify about new invite links
-TIMEOUT = 30  # Timeout in seconds for the bot request
+LOCAL_BOT_URL = "http://127.0.0.1:5001/register_invite"  # Local bot endpoint to notify about new invite links
+TIMEOUT = 30  # Timeout duration for requests to the local bot
 
 # Configure Logging
 logging.basicConfig(
@@ -75,9 +75,6 @@ def notify_local_bot(payload):
         response = requests.post(LOCAL_BOT_URL, json=payload, timeout=TIMEOUT)
         logger.debug(f"[DEBUG] Response from local bot: {response.status_code}, {response.text}")
         return response
-    except requests.exceptions.Timeout:
-        logger.error("[ERROR] Request to bot timed out.")
-        raise
     except requests.exceptions.RequestException as e:
         logger.error(f"[ERROR] Failed to send invite link to local bot: {str(e)}", exc_info=True)
         raise
