@@ -3,8 +3,8 @@ import requests
 import logging
 
 # ---- Configuration ----
-LOCAL_BOT_URL = "https://membership-bot-rpyz.onrender.com/register_invite"
-TIMEOUT = 30  # Timeout duration for requests to the local bot
+LOCAL_BOT_URL = "https://membership-bot-f4eq.onrender.com/register_invite"  # Bot URL
+TIMEOUT = 30  # Timeout duration for requests to the bot
 
 # Configure Logging
 logging.basicConfig(
@@ -78,6 +78,19 @@ def notify_local_bot(payload):
     except requests.exceptions.RequestException as e:
         logger.error(f"[ERROR] Failed to send invite link to local bot: {str(e)}", exc_info=True)
         raise
+
+
+# ---- Flask Error Handlers ----
+@app.errorhandler(404)
+def not_found(error):
+    logger.warning("[WARNING] 404 - Endpoint Not Found")
+    return jsonify({"error": "Endpoint not found"}), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    logger.error("[ERROR] 500 - Internal Server Error", exc_info=True)
+    return jsonify({"error": "Internal server error"}), 500
 
 
 # ---- Run the Flask App ----
