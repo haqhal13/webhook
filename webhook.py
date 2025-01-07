@@ -3,7 +3,7 @@ import requests
 import logging
 
 # ---- Configuration ----
-LOCAL_BOT_URL = "https://membership-bot-rpyz.onrender.com"  # Local bot endpoint to notify about new invite links
+LOCAL_BOT_URL = "https://membership-bot-rpyz.onrender.com/register_invite"
 TIMEOUT = 30  # Timeout duration for requests to the local bot
 
 # Configure Logging
