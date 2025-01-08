@@ -1,9 +1,10 @@
 from flask import Flask, request, jsonify
-import requests
 import logging
+import requests
 
 # ---- Configuration ----
-LOCAL_BOT_URL = "https://membership-bot-f4eq.onrender.com/register_invite"  # Bot URL
+BOT_TOKEN = "7559019704:AAEgnG14Nkm-x4_9K3m4HXSitCSrd2RdsaE"  # Replace with your bot token
+LOCAL_BOT_URL = "https://membership-bot-f4eq.onrender.com/register_invite"  # Replace with your bot's local URL
 TIMEOUT = 30  # Timeout duration for requests to the bot
 
 # Configure Logging
@@ -24,6 +25,22 @@ def health_check():
     """
     logger.info("[INFO] Health check received.")
     return "Webhook is running!", 200
+
+
+# ---- Flask Route: Webhook for Telegram ----
+@app.route(f"/webhook/{BOT_TOKEN}", methods=["POST"])
+def webhook():
+    """
+    Handles incoming webhook updates from Telegram.
+    """
+    try:
+        data = request.get_json()
+        logger.info(f"Received update: {data}")
+        # Process the update here (e.g., forward to the bot or log it)
+        return "OK", 200
+    except Exception as e:
+        logger.error(f"Error processing update: {e}", exc_info=True)
+        return "Internal Server Error", 500
 
 
 # ---- Flask Route: Register Invite Link ----
